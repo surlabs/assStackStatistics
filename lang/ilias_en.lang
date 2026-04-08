@@ -1,0 +1,22 @@
+tab_statistics#:#Statistics
+back_to_test#:#Back to Test
+question#:#Question
+no_stack_questions#:#This test contains no STACK questions.
+no_attempts_yet#:#No attempts recorded yet.
+analytics_unavailable#:#Analytics data could not be loaded.
+panel_attempt_summary#:#Attempt Summary
+panel_prt_summary#:#PRT Performance
+panel_hint_usage#:#Hint Usage
+stat_attempts#:#Total Attempts
+stat_users#:#Unique Users
+stat_avg_score#:#Average Score
+stat_avg_points#:#Average Points
+stat_error_rate#:#CAS Error Rate
+col_prt_name#:#PRT
+col_attempts#:#Attempts
+col_avg_score#:#Avg. Score
+col_max_points#:#Max. Points
+col_errors#:#Errors
+col_hint_title#:#Hint
+col_open_count#:#Opens
+col_unique_attempts#:#Unique Attempts

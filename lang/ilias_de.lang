@@ -1,0 +1,22 @@
+tab_statistics#:#Statistiken
+back_to_test#:#Zurück zum Test
+question#:#Frage
+no_stack_questions#:#Dieser Test enthält keine STACK-Fragen.
+no_attempts_yet#:#Noch keine Versuche aufgezeichnet.
+analytics_unavailable#:#Analysedaten konnten nicht geladen werden.
+panel_attempt_summary#:#Versuchsübersicht
+panel_prt_summary#:#PRT-Leistung
+panel_hint_usage#:#Hinweisnutzung
+stat_attempts#:#Gesamtversuche
+stat_users#:#Eindeutige Nutzer
+stat_avg_score#:#Durchschnittliche Punktzahl
+stat_avg_points#:#Durchschnittspunkte
+stat_error_rate#:#CAS-Fehlerrate
+col_prt_name#:#PRT
+col_attempts#:#Versuche
+col_avg_score#:#Ø Punktzahl
+col_max_points#:#Max. Punkte
+col_errors#:#Fehler
+col_hint_title#:#Hinweis
+col_open_count#:#Öffnungen
+col_unique_attempts#:#Eindeutige Versuche
