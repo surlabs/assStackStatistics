@@ -22,13 +22,27 @@ class ilassStackStatisticsUIHookGUI extends ilUIHookPluginGUI
 
         $params = $DIC->http()->request()->getQueryParams();
         $ref_id = (int) ($params['ref_id'] ?? 0);
+        $cmd_class = strtolower((string) ($params['cmdClass'] ?? ''));
 
-        if (strtolower($params['baseClass'] ?? '') !== 'ilobjtestgui' || $ref_id <= 0) {
+        $base_class = strtolower($params['baseClass'] ?? '');
+        if (!in_array($base_class, ['ilobjtestgui', 'ilrepositorygui'], true) || $ref_id <= 0) {
+            return;
+        }
+
+        if ($cmd_class === 'ilassquestionpreviewgui') {
+            return;
+        }
+
+        if (ilObject::_lookupType(ilObject::_lookupObjId($ref_id)) !== 'tst') {
             return;
         }
 
         if (!$DIC->access()->checkAccess('write', '', $ref_id)
             && !$DIC->access()->checkAccess('tst_results', '', $ref_id)) {
+            return;
+        }
+
+        if (!$this->hasStackQuestions($ref_id)) {
             return;
         }
 
@@ -73,8 +87,8 @@ class ilassStackStatisticsUIHookGUI extends ilUIHookPluginGUI
         $tpl->setTitle(ilObject::_lookupTitle($obj_id));
         $tpl->setTitleIcon(ilObject::_getIcon($obj_id, 'big', 'tst'));
 
-        $DIC->tabs()->clearTargets();
-        $DIC->tabs()->setBackTarget($this->plugin->txt('back_to_test'), ilLink::_getStaticLink($ref_id, 'tst'));
+        $test_gui = new ilObjTestGUI();
+        $test_gui->getTabs();
 
         $DIC->ctrl()->setParameterByClass(self::class, 'ref_id', $ref_id);
         $DIC->tabs()->addTab(
@@ -244,17 +258,19 @@ class ilassStackStatisticsUIHookGUI extends ilUIHookPluginGUI
         global $DIC;
         $db = $DIC->database();
 
-        $obj_id = (int) ($db->fetchAssoc($db->queryF(
-            "SELECT obj_id FROM object_reference WHERE ref_id = %s",
-            ['integer'], [$ref_id]
-        ))['obj_id'] ?? 0);
+        $obj_id = (int) ilObject::_lookupObjId($ref_id);
 
-        $res = $db->query(
-            "SELECT DISTINCT xaa.question_id
-             FROM tst_active ta
-             JOIN xqcas_anl_attempts xaa ON xaa.active_id = ta.active_id
-             WHERE ta.test_fi = (SELECT test_id FROM tst_tests WHERE obj_fi = " . $db->quote($obj_id, 'integer') . ")
-             ORDER BY xaa.question_id"
+        $res = $db->queryF(
+            "SELECT DISTINCT qq.question_id
+             FROM tst_tests tt
+             JOIN tst_test_question ttq ON ttq.test_fi = tt.test_id
+             JOIN qpl_questions qq ON qq.question_id = ttq.question_fi
+             JOIN qpl_qst_type qqt ON qqt.question_type_id = qq.question_type_fi
+             WHERE tt.obj_fi = %s
+               AND qqt.type_tag = %s
+             ORDER BY ttq.sequence",
+            ['integer', 'text'],
+            [$obj_id, 'assStackQuestion']
         );
 
         $ids = [];
@@ -262,6 +278,11 @@ class ilassStackStatisticsUIHookGUI extends ilUIHookPluginGUI
             $ids[] = (int) $row['question_id'];
         }
         return $ids;
+    }
+
+    private function hasStackQuestions(int $ref_id): bool
+    {
+        return $this->getStackQuestionIds($ref_id) !== [];
     }
 
     private function loadAnalyticsClass(): void
