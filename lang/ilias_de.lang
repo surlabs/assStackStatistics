@@ -20,3 +20,46 @@ col_errors#:#Fehler
 col_hint_title#:#Hinweis
 col_open_count#:#Öffnungen
 col_unique_attempts#:#Eindeutige Versuche
+role_teacher#:#Dashboard für Lehrende
+role_student#:#Dashboard für Lernende
+filter_question#:#Frage
+filter_student#:#Teilnehmer
+filter_hints#:#Hinweisnutzung
+filter_score#:#Punktebereich
+filter_attempts#:#Versuche
+filter_prt#:#PRT
+filter_all#:#Alle
+filter_with_hints#:#Mit Hinweisen
+filter_without_hints#:#Ohne Hinweise
+filter_score_low#:#Unter 50%
+filter_score_mid#:#50% bis 79%
+filter_score_high#:#80% und höher
+filter_attempts_all#:#Alle Versuche
+filter_attempts_latest#:#Neuester Versuch pro Nutzer/Frage
+apply_filters#:#Filter anwenden
+all_questions#:#Alle STACK-Fragen
+all_students#:#Alle Teilnehmenden
+filter_all_prts#:#Alle PRTs
+stat_hint_rate#:#Hinweisnutzungsrate
+stat_personal_avg_score#:#Ihr Durchschnitt
+stat_best_score#:#Beste Punktzahl
+stat_hint_uses#:#Hinweisöffnungen
+chart_score_histogram#:#Punktverteilung
+chart_hint_donut#:#Verteilung der Hinweisnutzung
+chart_question_heatmap#:#Fragen-Heatmap
+chart_prt_distribution#:#PRT-Ergebnisverteilung
+panel_attempts_table#:#Versuche
+panel_empty#:#Information
+col_student#:#Teilnehmer
+col_score#:#Punktzahl
+col_hints#:#Hinweisöffnungen
+col_attempt_time#:#Zeitstempel
+legend_mean#:#Mittelwert
+legend_median#:#Median
+legend_personal#:#Persönlicher Durchschnitt
+legend_with_hints#:#Mit Hinweisen
+legend_without_hints#:#Ohne Hinweise
+no_attempts_filtered#:#Keine Versuche entsprechen den aktuellen Filtern.
+no_personal_attempts#:#Noch keine persönlichen STACK-Versuche vorhanden.
+no_prt_available#:#Keine PRT-Daten für die aktuelle Auswahl vorhanden.
+no_chart_data#:#Keine Diagrammdaten verfügbar.

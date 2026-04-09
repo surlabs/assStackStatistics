@@ -20,3 +20,46 @@ col_errors#:#Errors
 col_hint_title#:#Hint
 col_open_count#:#Opens
 col_unique_attempts#:#Unique Attempts
+role_teacher#:#Teacher dashboard
+role_student#:#Student dashboard
+filter_question#:#Question
+filter_student#:#Student
+filter_hints#:#Hint usage
+filter_score#:#Score range
+filter_attempts#:#Attempts
+filter_prt#:#PRT
+filter_all#:#All
+filter_with_hints#:#With hints
+filter_without_hints#:#Without hints
+filter_score_low#:#Below 50%
+filter_score_mid#:#50% to 79%
+filter_score_high#:#80% and above
+filter_attempts_all#:#All attempts
+filter_attempts_latest#:#Latest per student/question
+apply_filters#:#Apply filters
+all_questions#:#All STACK questions
+all_students#:#All students
+filter_all_prts#:#All PRTs
+stat_hint_rate#:#Hint Usage Rate
+stat_personal_avg_score#:#Your Average Score
+stat_best_score#:#Best Score
+stat_hint_uses#:#Hint Opens
+chart_score_histogram#:#Score Histogram
+chart_hint_donut#:#Hint Usage Distribution
+chart_question_heatmap#:#Question Heatmap
+chart_prt_distribution#:#PRT Outcome Distribution
+panel_attempts_table#:#Attempts
+panel_empty#:#Information
+col_student#:#Student
+col_score#:#Score
+col_hints#:#Hint opens
+col_attempt_time#:#Timestamp
+legend_mean#:#Mean
+legend_median#:#Median
+legend_personal#:#Personal average
+legend_with_hints#:#With hints
+legend_without_hints#:#Without hints
+no_attempts_filtered#:#No attempts match the current filters.
+no_personal_attempts#:#No personal STACK attempts recorded yet.
+no_prt_available#:#No PRT data available for the current selection.
+no_chart_data#:#No chart data available.
