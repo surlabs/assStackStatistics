@@ -8,6 +8,8 @@ use ILIAS\UI\Component\Table\Data;
 
 class ilassStackStatisticsAttemptsTable implements DataRetrieval
 {
+    private array $question_titles = [];
+
     public function __construct(
         private readonly array $attempts,
         private readonly bool $include_user,
@@ -47,7 +49,7 @@ class ilassStackStatisticsAttemptsTable implements DataRetrieval
 
         foreach ($records as $index => $attempt) {
             $record = [
-                'question' => ilObject::_lookupTitle((int) $attempt['question_id']) ?: ('Q' . $attempt['question_id']),
+                'question' => $this->getQuestionTitle((int) $attempt['question_id']),
                 'score' => round((float) $attempt['fraction'] * 100, 1) . ' %',
                 'hints' => (int) $attempt['hint_open_count'],
                 'stamp' => (new DateTimeImmutable('@' . (int) $attempt['stamp']))
@@ -95,8 +97,8 @@ class ilassStackStatisticsAttemptsTable implements DataRetrieval
             return match ($field) {
                 'student' => ilStr::strCmp(ilObjUser::_lookupFullname((int) $left['user_id']), ilObjUser::_lookupFullname((int) $right['user_id'])),
                 'question' => ilStr::strCmp(
-                    ilObject::_lookupTitle((int) $left['question_id']) ?: ('Q' . $left['question_id']),
-                    ilObject::_lookupTitle((int) $right['question_id']) ?: ('Q' . $right['question_id'])
+                    $this->getQuestionTitle((int) $left['question_id']),
+                    $this->getQuestionTitle((int) $right['question_id'])
                 ),
                 'score' => ((float) $left['fraction']) <=> ((float) $right['fraction']),
                 'hints' => ((int) $left['hint_open_count']) <=> ((int) $right['hint_open_count']),
@@ -114,5 +116,24 @@ class ilassStackStatisticsAttemptsTable implements DataRetrieval
     private function txt(string $key): string
     {
         return ilassStackStatisticsPlugin::getInstance()->txt($key);
+    }
+
+    private function getQuestionTitle(int $question_id): string
+    {
+        if (isset($this->question_titles[$question_id])) {
+            return $this->question_titles[$question_id];
+        }
+
+        global $DIC;
+
+        $row = $DIC->database()->fetchAssoc($DIC->database()->queryF(
+            'SELECT title FROM qpl_questions WHERE question_id = %s',
+            ['integer'],
+            [$question_id]
+        ));
+
+        $this->question_titles[$question_id] = trim((string) ($row['title'] ?? '')) ?: ('Q' . $question_id);
+
+        return $this->question_titles[$question_id];
     }
 }

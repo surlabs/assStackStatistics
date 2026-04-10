@@ -2,6 +2,8 @@
 
 class ilassStackStatisticsDataProvider
 {
+    private array $question_titles = [];
+
     public function getStackQuestionIds(int $ref_id): array
     {
         global $DIC;
@@ -100,7 +102,7 @@ class ilassStackStatisticsDataProvider
 
             $rows[] = [
                 'question_id' => $question_id,
-                'title' => ilObject::_lookupTitle($question_id) ?: ('Q' . $question_id),
+                'title' => $this->getQuestionTitle($question_id),
                 'avg_score' => $this->average(array_column($attempts, 'fraction')),
                 'hint_rate' => $this->hintRate($attempts),
                 'attempt_count' => count($attempts),
@@ -172,6 +174,26 @@ class ilassStackStatisticsDataProvider
 
         arsort($distribution);
         return $distribution;
+    }
+
+    public function getQuestionTitle(int $question_id): string
+    {
+        if (isset($this->question_titles[$question_id])) {
+            return $this->question_titles[$question_id];
+        }
+
+        global $DIC;
+        $db = $DIC->database();
+
+        $row = $db->fetchAssoc($db->queryF(
+            'SELECT title FROM qpl_questions WHERE question_id = %s',
+            ['integer'],
+            [$question_id]
+        ));
+
+        $this->question_titles[$question_id] = trim((string) ($row['title'] ?? '')) ?: ('Q' . $question_id);
+
+        return $this->question_titles[$question_id];
     }
 
     public function average(array $values): float

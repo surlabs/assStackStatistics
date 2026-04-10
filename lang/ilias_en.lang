@@ -46,7 +46,7 @@ stat_best_score#:#Best Score
 stat_hint_uses#:#Hint Opens
 chart_score_histogram#:#Score Histogram
 chart_hint_donut#:#Hint Usage Distribution
-chart_question_heatmap#:#Question Heatmap
+chart_question_heatmap#:#Question Overview
 chart_prt_distribution#:#PRT Outcome Distribution
 panel_attempts_table#:#Attempts
 panel_empty#:#Information

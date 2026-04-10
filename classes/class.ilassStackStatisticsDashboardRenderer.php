@@ -41,13 +41,9 @@ class ilassStackStatisticsDashboardRenderer
         $student_attempts = $role === 'student'
             ? $this->data_provider->getAttemptRows($selected_question_ids, ['user_id' => (int) $DIC->user()->getId()])
             : [];
-        $cohort_attempts = $role === 'student'
-            ? $this->data_provider->getAttemptRows($selected_question_ids, [])
-            : $teacher_attempts;
-
         $content = $role === 'teacher'
             ? $this->renderTeacherDashboard($selected_question_ids, $question_ids, $filters, $teacher_attempts)
-            : $this->renderStudentDashboard($selected_question_ids, $question_ids, $filters, $student_attempts, $cohort_attempts);
+            : $this->renderStudentDashboard($selected_question_ids, $question_ids, $filters, $student_attempts);
 
         return $this->renderTemplate('dashboard_page', [
             'TOOLBAR' => $DIC->ui()->renderer()->render($filter),
@@ -101,7 +97,7 @@ class ilassStackStatisticsDashboardRenderer
         return $html;
     }
 
-    private function renderStudentDashboard(array $selected_question_ids, array $all_question_ids, array $filters, array $student_attempts, array $cohort_attempts): string
+    private function renderStudentDashboard(array $selected_question_ids, array $all_question_ids, array $filters, array $student_attempts): string
     {
         if ($student_attempts === []) {
             return $this->renderEmptyState($this->plugin->txt('no_personal_attempts'));
@@ -128,7 +124,10 @@ class ilassStackStatisticsDashboardRenderer
         $html .= '<div class="xstsa-grid">';
         $html .= $this->renderPanel(
             $this->plugin->txt('chart_score_histogram'),
-            $this->renderHistogram(array_column($cohort_attempts, 'fraction'), $this->data_provider->average(array_column($student_attempts, 'fraction')))
+            $this->renderHistogram(
+                array_column($student_attempts, 'fraction'),
+                null
+            )
         );
         $html .= $this->renderPanel($this->plugin->txt('chart_hint_donut'), $this->renderDonutChart([
             $this->plugin->txt('legend_with_hints') => count(array_filter($student_attempts, static fn(array $row): bool => $row['hint_used'])),
@@ -158,7 +157,7 @@ class ilassStackStatisticsDashboardRenderer
 
         $question_options = [0 => $this->plugin->txt('all_questions')];
         foreach ($question_ids as $question_id) {
-            $question_options[$question_id] = ilObject::_lookupTitle($question_id) ?: ('Q' . $question_id);
+            $question_options[$question_id] = $this->data_provider->getQuestionTitle($question_id);
         }
 
         $filter_inputs = [
@@ -274,6 +273,26 @@ class ilassStackStatisticsDashboardRenderer
 
         $mean = $this->data_provider->average($fractions);
         $median = $this->data_provider->median($fractions);
+        $markers = [
+            [
+                'fraction' => $mean,
+                'color' => '#dc2626',
+                'dash' => [],
+            ],
+            [
+                'fraction' => $median,
+                'color' => '#f59e0b',
+                'dash' => [6, 4],
+            ],
+        ];
+        if ($marker_fraction !== null) {
+            $markers[] = [
+                'fraction' => $marker_fraction,
+                'color' => '#2563eb',
+                'dash' => [2, 4],
+            ];
+        }
+
         $chart = $this->renderChartCanvas('bar', [
             'data' => [
                 'labels' => array_map(static fn(int $idx): string => ($idx * 10) . '-' . (($idx + 1) * 10), array_keys($bins)),
@@ -290,6 +309,7 @@ class ilassStackStatisticsDashboardRenderer
                 'maintainAspectRatio' => false,
                 'plugins' => [
                     'legend' => ['display' => false],
+                    'xstsaMarkers' => $markers,
                 ],
                 'scales' => [
                     'y' => [
@@ -361,37 +381,43 @@ class ilassStackStatisticsDashboardRenderer
             return $this->renderEmptyState($this->plugin->txt('no_chart_data'), false);
         }
 
-        return $this->renderChartCanvas('bubble', [
-            'data' => [
-                'datasets' => [[
-                    'label' => $this->plugin->txt('chart_question_heatmap'),
-                    'data' => array_map(static fn(array $row): array => [
-                        'x' => round((float) $row['avg_score'] * 100, 1),
-                        'y' => round((float) $row['hint_rate'] * 100, 1),
-                        'r' => max(8, min(26, (int) round(sqrt((int) $row['attempt_count']) * 4))),
-                        'label' => (string) $row['title'],
-                    ], $rows),
-                    'backgroundColor' => 'rgba(79, 70, 229, 0.45)',
-                    'borderColor' => 'rgba(79, 70, 229, 0.9)',
-                ]],
-            ],
-            'options' => [
-                'responsive' => true,
-                'maintainAspectRatio' => false,
-                'plugins' => [
-                    'legend' => ['display' => false],
-                    'tooltip' => [
-                        'callbacks' => [
-                            'label' => '__XSTSA_BUBBLE_TOOLTIP__',
-                        ],
-                    ],
-                ],
-                'scales' => [
-                    'x' => ['min' => 0, 'max' => 100, 'title' => ['display' => true, 'text' => $this->plugin->txt('stat_avg_score')]],
-                    'y' => ['min' => 0, 'max' => 100, 'title' => ['display' => true, 'text' => $this->plugin->txt('stat_hint_rate')]],
-                ],
-            ],
-        ]);
+        $html = '<table class="xstsa-heatmap">'
+            . '<thead><tr>'
+            . '<th>' . htmlspecialchars($this->plugin->txt('question')) . '</th>'
+            . '<th>' . htmlspecialchars($this->plugin->txt('stat_avg_score')) . '</th>'
+            . '<th>' . htmlspecialchars($this->plugin->txt('stat_hint_rate')) . '</th>'
+            . '</tr></thead><tbody>';
+
+        foreach ($rows as $row) {
+            $avg   = (float) $row['avg_score'];
+            $hints = (float) $row['hint_rate'];
+
+            // avg score: red (0) → yellow (0.5) → green (1)
+            $avg_hue  = (int) round($avg * 120);
+            $avg_bg   = 'hsl(' . $avg_hue . ',65%,88%)';
+            $avg_text = 'hsl(' . $avg_hue . ',55%,28%)';
+
+            // hint rate: green (0) → yellow (0.5) → red (1)  (more hints = worse)
+            $hint_hue  = (int) round((1 - $hints) * 120);
+            $hint_bg   = 'hsl(' . $hint_hue . ',65%,88%)';
+            $hint_text = 'hsl(' . $hint_hue . ',55%,28%)';
+
+            $count = (int) $row['attempt_count'];
+            $html .= '<tr>'
+                . '<td class="xstsa-heatmap__label">'
+                . htmlspecialchars((string) $row['title'])
+                . '<span class="xstsa-heatmap__attempts">(' . $count . ')</span>'
+                . '</td>'
+                . '<td class="xstsa-heatmap__cell">'
+                . '<span class="xstsa-heatmap__cell-inner" style="background:' . $avg_bg . ';color:' . $avg_text . '">'
+                . $this->formatPercent($avg) . '</span></td>'
+                . '<td class="xstsa-heatmap__cell">'
+                . '<span class="xstsa-heatmap__cell-inner" style="background:' . $hint_bg . ';color:' . $hint_text . '">'
+                . $this->formatPercent($hints) . '</span></td>'
+                . '</tr>';
+        }
+
+        return $html . '</tbody></table>';
     }
 
     private function renderAttemptsTable(array $attempts, bool $include_user): string
@@ -470,7 +496,6 @@ class ilassStackStatisticsDashboardRenderer
         $chart_id = 'xstsa-chart-' . (++$this->chartCounter);
         $chart_config = array_merge(['type' => $type], $config);
         $encoded = json_encode($chart_config, JSON_UNESCAPED_SLASHES);
-        $encoded = str_replace('"__XSTSA_BUBBLE_TOOLTIP__"', 'function(context){var raw=context.raw||{};return (raw.label||"")+": " + raw.x + "% / " + raw.y + "%";}', (string) $encoded);
         $this->chartScripts[] = 'new Chart(document.getElementById(' . json_encode($chart_id) . '), ' . $encoded . ');';
 
         $center_html = '';
@@ -488,7 +513,7 @@ class ilassStackStatisticsDashboardRenderer
         }
 
         return '<script src="Customizing/global/plugins/Services/UIComponent/UserInterfaceHook/assStackStatistics/templates/js/chart.umd.min.js"></script>'
-            . '<script>document.addEventListener("DOMContentLoaded",function(){if(typeof Chart==="undefined"){return;}' . implode('', $this->chartScripts) . '});</script>';
+            . '<script>document.addEventListener("DOMContentLoaded",function(){if(typeof Chart==="undefined"){return;}const xstsaMarkersPlugin={id:"xstsaMarkers",afterDatasetsDraw(chart,args,pluginOptions){const markers=(pluginOptions||[]);if(!markers.length){return;}const area=chart.chartArea;if(!area){return;}const ctx=chart.ctx;markers.forEach(function(marker){const fraction=Math.max(0,Math.min(1,Number(marker.fraction)||0));const x=area.left+((area.right-area.left)*fraction);ctx.save();ctx.beginPath();ctx.setLineDash(Array.isArray(marker.dash)?marker.dash:[]);ctx.strokeStyle=marker.color||"#000";ctx.lineWidth=2;ctx.moveTo(x,area.top);ctx.lineTo(x,area.bottom);ctx.stroke();ctx.restore();});}};Chart.register(xstsaMarkersPlugin);' . implode('', $this->chartScripts) . '});</script>';
     }
 
     private function loadAnalyticsClass(): void

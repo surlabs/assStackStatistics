@@ -46,7 +46,7 @@ stat_best_score#:#Beste Punktzahl
 stat_hint_uses#:#Hinweisöffnungen
 chart_score_histogram#:#Punktverteilung
 chart_hint_donut#:#Verteilung der Hinweisnutzung
-chart_question_heatmap#:#Fragen-Heatmap
+chart_question_heatmap#:#Fragenübersicht
 chart_prt_distribution#:#PRT-Ergebnisverteilung
 panel_attempts_table#:#Versuche
 panel_empty#:#Information
