@@ -52,6 +52,7 @@ class ilassStackStatisticsAttemptsTable implements DataRetrieval
                 'question' => $this->getQuestionTitle((int) $attempt['question_id']),
                 'score' => round((float) $attempt['fraction'] * 100, 1) . ' %',
                 'hints' => (int) $attempt['hint_open_count'],
+                'time_spent' => $this->formatDuration((int) ($attempt['total_time_ms'] ?? 0)),
                 'stamp' => (new DateTimeImmutable('@' . (int) $attempt['stamp']))
                     ->setTimezone(new DateTimeZone($DIC->user()->getTimeZone() ?: date_default_timezone_get())),
             ];
@@ -83,6 +84,7 @@ class ilassStackStatisticsAttemptsTable implements DataRetrieval
         $columns['question'] = $cf->text($DIC->language()->txt('question'))->withIsSortable(true);
         $columns['score'] = $cf->text($this->txt('col_score'))->withIsSortable(true);
         $columns['hints'] = $cf->number($this->txt('col_hints'))->withIsSortable(true);
+        $columns['time_spent'] = $cf->text($this->txt('col_time_spent'))->withIsSortable(true);
         $columns['stamp'] = $cf->date($this->txt('col_attempt_time'), $date_format)->withIsSortable(true);
 
         return $columns;
@@ -102,6 +104,7 @@ class ilassStackStatisticsAttemptsTable implements DataRetrieval
                 ),
                 'score' => ((float) $left['fraction']) <=> ((float) $right['fraction']),
                 'hints' => ((int) $left['hint_open_count']) <=> ((int) $right['hint_open_count']),
+                'time_spent' => ((int) ($left['total_time_ms'] ?? 0)) <=> ((int) ($right['total_time_ms'] ?? 0)),
                 default => ((int) $left['stamp']) <=> ((int) $right['stamp']),
             };
         });
@@ -135,5 +138,18 @@ class ilassStackStatisticsAttemptsTable implements DataRetrieval
         $this->question_titles[$question_id] = trim((string) ($row['title'] ?? '')) ?: ('Q' . $question_id);
 
         return $this->question_titles[$question_id];
+    }
+
+    private function formatDuration(int $milliseconds): string
+    {
+        $seconds = max(0, (int) round($milliseconds / 1000));
+        $minutes = intdiv($seconds, 60);
+        $remaining_seconds = $seconds % 60;
+
+        if ($minutes > 0) {
+            return $minutes . 'm ' . $remaining_seconds . 's';
+        }
+
+        return $remaining_seconds . 's';
     }
 }

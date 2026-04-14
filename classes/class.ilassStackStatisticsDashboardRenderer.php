@@ -41,9 +41,12 @@ class ilassStackStatisticsDashboardRenderer
         $student_attempts = $role === 'student'
             ? $this->data_provider->getAttemptRows($selected_question_ids, ['user_id' => (int) $DIC->user()->getId()])
             : [];
+        $cohort_attempts = $role === 'student'
+            ? $this->data_provider->getAttemptRows($selected_question_ids, [])
+            : [];
         $content = $role === 'teacher'
             ? $this->renderTeacherDashboard($selected_question_ids, $question_ids, $filters, $teacher_attempts)
-            : $this->renderStudentDashboard($selected_question_ids, $question_ids, $filters, $student_attempts);
+            : $this->renderStudentDashboard($selected_question_ids, $question_ids, $filters, $student_attempts, $cohort_attempts);
 
         return $this->renderTemplate('dashboard_page', [
             'TOOLBAR' => $DIC->ui()->renderer()->render($filter),
@@ -74,6 +77,7 @@ class ilassStackStatisticsDashboardRenderer
             ['label' => $this->plugin->txt('stat_users'), 'value' => count(array_unique(array_column($attempts, 'user_id')))],
             ['label' => $this->plugin->txt('stat_avg_score'), 'value' => $this->formatPercent($this->data_provider->average(array_column($attempts, 'fraction')))],
             ['label' => $this->plugin->txt('stat_hint_rate'), 'value' => $this->formatPercent($this->data_provider->hintRate($attempts))],
+            ['label' => $this->plugin->txt('stat_avg_time'), 'value' => $this->formatDuration((int) round($this->data_provider->average(array_column($attempts, 'total_time_ms'))))],
         ];
 
         $html = $this->renderStatCards($cards);
@@ -97,7 +101,7 @@ class ilassStackStatisticsDashboardRenderer
         return $html;
     }
 
-    private function renderStudentDashboard(array $selected_question_ids, array $all_question_ids, array $filters, array $student_attempts): string
+    private function renderStudentDashboard(array $selected_question_ids, array $all_question_ids, array $filters, array $student_attempts, array $cohort_attempts): string
     {
         if ($student_attempts === []) {
             return $this->renderEmptyState($this->plugin->txt('no_personal_attempts'));
@@ -118,6 +122,7 @@ class ilassStackStatisticsDashboardRenderer
             ['label' => $this->plugin->txt('stat_personal_avg_score'), 'value' => $this->formatPercent($this->data_provider->average(array_column($student_attempts, 'fraction')))],
             ['label' => $this->plugin->txt('stat_best_score'), 'value' => $this->formatPercent(max(array_column($student_attempts, 'fraction')))],
             ['label' => $this->plugin->txt('stat_hint_uses'), 'value' => array_sum(array_column($student_attempts, 'hint_open_count'))],
+            ['label' => $this->plugin->txt('stat_avg_time'), 'value' => $this->formatDuration((int) round($this->data_provider->average(array_column($student_attempts, 'total_time_ms'))))],
         ];
 
         $html = $this->renderStatCards($cards);
@@ -125,8 +130,8 @@ class ilassStackStatisticsDashboardRenderer
         $html .= $this->renderPanel(
             $this->plugin->txt('chart_score_histogram'),
             $this->renderHistogram(
-                array_column($student_attempts, 'fraction'),
-                null
+                array_column($cohort_attempts, 'fraction'),
+                $this->data_provider->average(array_column($student_attempts, 'fraction'))
             )
         );
         $html .= $this->renderPanel($this->plugin->txt('chart_hint_donut'), $this->renderDonutChart([
@@ -386,6 +391,7 @@ class ilassStackStatisticsDashboardRenderer
             . '<th>' . htmlspecialchars($this->plugin->txt('question')) . '</th>'
             . '<th>' . htmlspecialchars($this->plugin->txt('stat_avg_score')) . '</th>'
             . '<th>' . htmlspecialchars($this->plugin->txt('stat_hint_rate')) . '</th>'
+            . '<th>' . htmlspecialchars($this->plugin->txt('stat_avg_time')) . '</th>'
             . '</tr></thead><tbody>';
 
         foreach ($rows as $row) {
@@ -401,6 +407,7 @@ class ilassStackStatisticsDashboardRenderer
             $hint_hue  = (int) round((1 - $hints) * 120);
             $hint_bg   = 'hsl(' . $hint_hue . ',65%,88%)';
             $hint_text = 'hsl(' . $hint_hue . ',55%,28%)';
+            $avg_time = (int) round((float) ($row['avg_time_ms'] ?? 0));
 
             $count = (int) $row['attempt_count'];
             $html .= '<tr>'
@@ -414,6 +421,8 @@ class ilassStackStatisticsDashboardRenderer
                 . '<td class="xstsa-heatmap__cell">'
                 . '<span class="xstsa-heatmap__cell-inner" style="background:' . $hint_bg . ';color:' . $hint_text . '">'
                 . $this->formatPercent($hints) . '</span></td>'
+                . '<td class="xstsa-heatmap__cell">'
+                . '<span class="xstsa-heatmap__cell-inner">' . htmlspecialchars($this->formatDuration($avg_time)) . '</span></td>'
                 . '</tr>';
         }
 
@@ -463,6 +472,19 @@ class ilassStackStatisticsDashboardRenderer
     private function formatPercent(float $fraction): string
     {
         return round($fraction * 100, 1) . ' %';
+    }
+
+    private function formatDuration(int $milliseconds): string
+    {
+        $seconds = max(0, (int) round($milliseconds / 1000));
+        $minutes = intdiv($seconds, 60);
+        $remaining_seconds = $seconds % 60;
+
+        if ($minutes > 0) {
+            return $minutes . 'm ' . $remaining_seconds . 's';
+        }
+
+        return $remaining_seconds . 's';
     }
 
     private function isTeacher(int $ref_id): bool

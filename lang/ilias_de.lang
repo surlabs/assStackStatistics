@@ -41,6 +41,7 @@ all_questions#:#Alle STACK-Fragen
 all_students#:#Alle Teilnehmenden
 filter_all_prts#:#Alle PRTs
 stat_hint_rate#:#Hinweisnutzungsrate
+stat_avg_time#:#Durchschnittliche Zeit
 stat_personal_avg_score#:#Ihr Durchschnitt
 stat_best_score#:#Beste Punktzahl
 stat_hint_uses#:#Hinweisöffnungen
@@ -53,6 +54,7 @@ panel_empty#:#Information
 col_student#:#Teilnehmer
 col_score#:#Punktzahl
 col_hints#:#Hinweisöffnungen
+col_time_spent#:#Bearbeitungszeit
 col_attempt_time#:#Zeitstempel
 legend_mean#:#Mittelwert
 legend_median#:#Median

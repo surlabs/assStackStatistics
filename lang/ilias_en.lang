@@ -41,6 +41,7 @@ all_questions#:#All STACK questions
 all_students#:#All students
 filter_all_prts#:#All PRTs
 stat_hint_rate#:#Hint Usage Rate
+stat_avg_time#:#Average Time
 stat_personal_avg_score#:#Your Average Score
 stat_best_score#:#Best Score
 stat_hint_uses#:#Hint Opens
@@ -53,6 +54,7 @@ panel_empty#:#Information
 col_student#:#Student
 col_score#:#Score
 col_hints#:#Hint opens
+col_time_spent#:#Time spent
 col_attempt_time#:#Timestamp
 legend_mean#:#Mean
 legend_median#:#Median

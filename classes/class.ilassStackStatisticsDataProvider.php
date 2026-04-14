@@ -41,7 +41,8 @@ class ilassStackStatisticsDataProvider
         $question_in = $db->in('a.question_id', $question_ids, false, 'integer');
         $res = $db->query(
             'SELECT a.question_id, a.active_id, a.pass, a.user_id, a.total_points, a.max_points, a.has_error, a.stamp,'
-            . ' COALESCE(h.open_count, 0) AS hint_open_count'
+            . ' COALESCE(h.open_count, 0) AS hint_open_count,'
+            . ' COALESCE(t.total_ms, 0) AS total_time_ms'
             . ' FROM xqcas_anl_attempts a'
             . ' LEFT JOIN ('
             . '   SELECT question_id, active_id, pass, COUNT(*) AS open_count'
@@ -49,6 +50,7 @@ class ilassStackStatisticsDataProvider
             . "   WHERE event_type = 'open'"
             . '   GROUP BY question_id, active_id, pass'
             . ' ) h ON h.question_id = a.question_id AND h.active_id = a.active_id AND h.pass = a.pass'
+            . ' LEFT JOIN xqcas_time_tracking t ON t.question_id = a.question_id AND t.active_id = a.active_id AND t.pass = a.pass AND t.user_id = a.user_id'
             . ' WHERE ' . $question_in
             . ' ORDER BY a.stamp DESC'
         );
@@ -59,6 +61,7 @@ class ilassStackStatisticsDataProvider
                 ? ((float) $row['total_points'] / (float) $row['max_points'])
                 : 0.0;
             $row['hint_open_count'] = (int) $row['hint_open_count'];
+            $row['total_time_ms'] = (int) ($row['total_time_ms'] ?? 0);
             $row['hint_used'] = $row['hint_open_count'] > 0;
 
             if (!empty($filters['user_id']) && (int) $filters['user_id'] !== (int) $row['user_id']) {
@@ -105,6 +108,7 @@ class ilassStackStatisticsDataProvider
                 'title' => $this->getQuestionTitle($question_id),
                 'avg_score' => $this->average(array_column($attempts, 'fraction')),
                 'hint_rate' => $this->hintRate($attempts),
+                'avg_time_ms' => $this->average(array_column($attempts, 'total_time_ms')),
                 'attempt_count' => count($attempts),
             ];
         }
