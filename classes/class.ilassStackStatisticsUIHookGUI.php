@@ -81,8 +81,7 @@ class ilassStackStatisticsUIHookGUI extends ilUIHookPluginGUI
         $tpl->setTitle(ilObject::_lookupTitle($obj_id));
         $tpl->setTitleIcon(ilObject::_getIcon($obj_id, 'big', 'tst'));
 
-        $test_gui = new ilObjTestGUI();
-        $test_gui->getTabs();
+        $this->addTestNavigationTabs($ref_id);
 
         $DIC->ctrl()->setParameterByClass(self::class, 'ref_id', $ref_id);
         $DIC->tabs()->addTab(
@@ -142,5 +141,87 @@ class ilassStackStatisticsUIHookGUI extends ilUIHookPluginGUI
         return $DIC->access()->checkAccess('write', '', $ref_id)
             || $DIC->access()->checkAccess('tst_results', '', $ref_id)
             || $DIC->access()->checkAccess('read', '', $ref_id);
+    }
+
+    private function addTestNavigationTabs(int $ref_id): void
+    {
+        $test_gui = new ilObjTestGUI();
+
+        try {
+            $test_gui->getTabs();
+            return;
+        } catch (ilCtrlException $e) {
+            if (strpos($e->getMessage(), 'ilTestResultsGUI') === false) {
+                throw $e;
+            }
+        }
+
+        $this->addTabsSkippedAfterMyResultsFailure($ref_id, $test_gui);
+    }
+
+    private function addTabsSkippedAfterMyResultsFailure(int $ref_id, ilObjTestGUI $test_gui): void
+    {
+        global $DIC;
+
+        $ctrl = $DIC->ctrl();
+        $lng = $DIC->language();
+        $access = $DIC->access();
+
+        $read = $access->checkAccess('read', '', $ref_id);
+        $write = $access->checkAccess('write', '', $ref_id);
+
+        if ($read) {
+            $this->safeAddTab('your_results', $lng->txt('your_results'), static function () use ($ctrl, $ref_id): string {
+                return self::linkToTestClass($ctrl, $ref_id, [ilTestResultsGUI::class, ilMyTestResultsGUI::class, ilTestEvaluationGUI::class]);
+            });
+        }
+
+        if ($write) {
+            if ($test_gui->getTestObject()->getGlobalSettings()->isManualScoringEnabled()) {
+                $this->safeAddTab('manscoring', $lng->txt('manscoring'), static function () use ($ctrl, $ref_id): string {
+                    return self::linkToTestClass($ctrl, $ref_id, [ILIAS\Test\Scoring\Manual\TestScoringByQuestionGUI::class], 'showManScoringByQuestionParticipantsTable');
+                });
+            }
+
+            $this->safeAddTab('meta_data', $lng->txt('meta_data'), static function () use ($test_gui): string {
+                $mdgui = new ilObjectMetaDataGUI($test_gui->getTestObject());
+                return (string) $mdgui->getTab(ilObjTestGUI::class);
+            });
+            $this->safeAddTab('export', $lng->txt('export'), static function () use ($ctrl, $ref_id): string {
+                return self::linkToTestClass($ctrl, $ref_id, [ilTestExportGUI::class]);
+            });
+        }
+
+        if ($read && ilLearningProgressAccess::checkAccess($ref_id)) {
+            $this->safeAddTab('learning_progress', $lng->txt('learning_progress'), static function () use ($ctrl, $ref_id): string {
+                return self::linkToTestClass($ctrl, $ref_id, [ilLearningProgressGUI::class]);
+            });
+        }
+
+        if ($access->checkAccess('edit_permission', '', $ref_id)) {
+            $this->safeAddTab('perm_settings', $lng->txt('perm_settings'), static function () use ($ctrl, $ref_id): string {
+                return self::linkToTestClass($ctrl, $ref_id, [ilPermissionGUI::class], 'perm');
+            });
+        }
+    }
+
+    private function safeAddTab(string $id, string $label, Closure $link_builder): void
+    {
+        global $DIC;
+
+        try {
+            $link = $link_builder();
+            if ($link === '') {
+                return;
+            }
+            $DIC->tabs()->addTab($id, $label, $link);
+        } catch (Throwable) {
+        }
+    }
+
+    private static function linkToTestClass(ilCtrlInterface $ctrl, int $ref_id, array $classes = [], string $cmd = ''): string
+    {
+        $ctrl->setParameterByClass(ilObjTestGUI::class, 'ref_id', $ref_id);
+        return $ctrl->getLinkTargetByClass(array_merge([ilRepositoryGUI::class, ilObjTestGUI::class], $classes), $cmd);
     }
 }
