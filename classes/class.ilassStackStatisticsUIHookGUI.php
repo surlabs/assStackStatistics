@@ -102,6 +102,32 @@ class ilassStackStatisticsUIHookGUI extends ilUIHookPluginGUI
         $tpl->printToStdout();
     }
 
+    public function exportAttempts(): void
+    {
+        $this->deliverExport('attempts');
+    }
+
+    public function exportHints(): void
+    {
+        $this->deliverExport('hints');
+    }
+
+    private function deliverExport(string $type): void
+    {
+        global $DIC;
+
+        $ref_id = (int) ($DIC->http()->request()->getQueryParams()['ref_id'] ?? 0);
+        if ($ref_id <= 0
+            || !($DIC->access()->checkAccess('write', '', $ref_id) || $DIC->access()->checkAccess('tst_results', '', $ref_id))) {
+            $DIC->ui()->mainTemplate()->setOnScreenMessage('failure', $DIC->language()->txt('no_permission'), true);
+            $DIC->ctrl()->redirectToURL(ilLink::_getStaticLink(1, 'root', true));
+            return;
+        }
+
+        $DIC->ctrl()->setParameterByClass(self::class, 'ref_id', $ref_id);
+        (new ilassStackStatisticsDashboardRenderer($this->plugin))->deliverExport($ref_id, $type);
+    }
+
     private function getStackQuestionIds(int $ref_id): array
     {
         global $DIC;

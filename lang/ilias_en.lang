@@ -65,3 +65,14 @@ no_attempts_filtered#:#No attempts match the current filters.
 no_personal_attempts#:#No personal STACK attempts recorded yet.
 no_prt_available#:#No PRT data available for the current selection.
 no_chart_data#:#No chart data available.
+panel_hint_usage_per_hint#:#Hint Usage per Hint
+filter_attempts_number#:#Attempt %s
+col_attempt_no#:#Attempt
+col_hint_no#:#Hint no.
+col_first_opened#:#First opened
+col_attempt_rate#:#Share of attempts
+col_points#:#Points
+col_time_spent_seconds#:#Time spent (s)
+export_attempts#:#Export attempts (CSV)
+export_hints#:#Export hint usage (CSV)
+no_hint_usage#:#No hints were opened in the selected attempts.

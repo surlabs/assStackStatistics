@@ -96,9 +96,10 @@ class ilassStackStatisticsDashboardRenderer
         );
         $html .= '</div>';
 
+        $html .= $this->renderPanel($this->plugin->txt('panel_hint_usage_per_hint'), $this->renderHintUsageTable($this->data_provider->getHintUsageRows($attempts)));
         $html .= $this->renderPanel($this->plugin->txt('panel_attempts_table'), $this->renderAttemptsTable($attempts, true));
 
-        return $html;
+        return $this->renderExportButtons() . $html;
     }
 
     private function renderStudentDashboard(array $selected_question_ids, array $all_question_ids, array $filters, array $student_attempts, array $cohort_attempts): string
@@ -187,10 +188,14 @@ class ilassStackStatisticsDashboardRenderer
                 'mid' => $this->plugin->txt('filter_score_mid'),
                 'high' => $this->plugin->txt('filter_score_high'),
             ])->withValue('all');
-            $filter_inputs['attempt_scope'] = $field_factory->select($this->plugin->txt('filter_attempts'), [
+            $attempt_options = [
                 'all' => $this->plugin->txt('filter_attempts_all'),
                 'latest' => $this->plugin->txt('filter_attempts_latest'),
-            ])->withValue('all');
+            ];
+            foreach ($this->data_provider->getAttemptNumberOptions($question_ids) as $attempt_no) {
+                $attempt_options[(string) $attempt_no] = sprintf($this->plugin->txt('filter_attempts_number'), $attempt_no);
+            }
+            $filter_inputs['attempt_scope'] = $field_factory->select($this->plugin->txt('filter_attempts'), $attempt_options)->withValue('all');
             $rendered = [true, true, true, true, true, true];
         }
 
@@ -229,7 +234,7 @@ class ilassStackStatisticsDashboardRenderer
         if (!in_array($score_band, ['all', 'low', 'mid', 'high'], true)) {
             $score_band = 'all';
         }
-        if (!in_array($attempt_scope, ['all', 'latest'], true)) {
+        if (!in_array($attempt_scope, ['all', 'latest'], true) && !ctype_digit($attempt_scope)) {
             $attempt_scope = 'all';
         }
 
@@ -386,7 +391,7 @@ class ilassStackStatisticsDashboardRenderer
             return $this->renderEmptyState($this->plugin->txt('no_chart_data'), false);
         }
 
-        $html = '<table class="xstsa-heatmap">'
+        $html = '<div class="xstsa-table-scroll"><table class="xstsa-heatmap">'
             . '<thead><tr>'
             . '<th>' . htmlspecialchars($this->plugin->txt('question')) . '</th>'
             . '<th>' . htmlspecialchars($this->plugin->txt('stat_avg_score')) . '</th>'
@@ -426,7 +431,124 @@ class ilassStackStatisticsDashboardRenderer
                 . '</tr>';
         }
 
-        return $html . '</tbody></table>';
+        return $html . '</tbody></table></div>';
+    }
+
+    public function deliverExport(int $ref_id, string $type): void
+    {
+        $question_ids = $this->data_provider->getStackQuestionIds($ref_id);
+        $filter = $this->buildFilterComponent($ref_id, 'teacher', $question_ids);
+        $filters = $this->getFilters($question_ids, 'teacher', $filter);
+        $selected_question_ids = $filters['question_id'] > 0 ? [$filters['question_id']] : $question_ids;
+        $attempts = $this->data_provider->getAttemptRows($selected_question_ids, $filters);
+
+        $csv = new ilCSVWriter();
+        $csv->setSeparator(';');
+
+        if ($type === 'hints') {
+            $this->addCsvRow($csv, [
+                $this->plugin->txt('col_student'),
+                $this->plugin->txt('question'),
+                $this->plugin->txt('col_attempt_no'),
+                $this->plugin->txt('col_hint_no'),
+                $this->plugin->txt('col_hint_title'),
+                $this->plugin->txt('col_open_count'),
+                $this->plugin->txt('col_first_opened'),
+                $this->plugin->txt('col_score'),
+            ]);
+            foreach ($this->data_provider->getHintUsagePerAttemptRows($attempts) as $row) {
+                $this->addCsvRow($csv, [
+                    ilObjUser::_lookupFullname((int) $row['user_id']),
+                    $this->data_provider->getQuestionTitle((int) $row['question_id']),
+                    $row['attempt_no'],
+                    $row['hint_index'] + 1,
+                    $row['hint_title'],
+                    $row['hint_opens'],
+                    date('Y-m-d H:i:s', (int) $row['first_opened']),
+                    round((float) $row['fraction'] * 100, 1),
+                ]);
+            }
+        } else {
+            $this->addCsvRow($csv, [
+                $this->plugin->txt('col_student'),
+                $this->plugin->txt('question'),
+                $this->plugin->txt('col_attempt_no'),
+                $this->plugin->txt('col_score'),
+                $this->plugin->txt('col_points'),
+                $this->plugin->txt('col_max_points'),
+                $this->plugin->txt('col_hints'),
+                $this->plugin->txt('col_time_spent_seconds'),
+                $this->plugin->txt('col_attempt_time'),
+            ]);
+            foreach ($attempts as $row) {
+                $this->addCsvRow($csv, [
+                    ilObjUser::_lookupFullname((int) $row['user_id']),
+                    $this->data_provider->getQuestionTitle((int) $row['question_id']),
+                    $row['attempt_no'],
+                    round((float) $row['fraction'] * 100, 1),
+                    (float) $row['total_points'],
+                    (float) $row['max_points'],
+                    $row['hint_open_count'],
+                    (int) round($row['total_time_ms'] / 1000),
+                    date('Y-m-d H:i:s', (int) $row['stamp']),
+                ]);
+            }
+        }
+
+        $file_name = 'stack_statistics_' . ($type === 'hints' ? 'hints' : 'attempts') . '_' . $ref_id . '_' . date('Ymd_His') . '.csv';
+        ilUtil::deliverData("\xEF\xBB\xBF" . $csv->getCSVString(), $file_name, 'text/csv');
+    }
+
+    private function addCsvRow(ilCSVWriter $csv, array $columns): void
+    {
+        $csv->addRow();
+        foreach ($columns as $column) {
+            $csv->addColumn((string) $column);
+        }
+    }
+
+    private function renderExportButtons(): string
+    {
+        global $DIC;
+
+        $ctrl = $DIC->ctrl();
+        $factory = $DIC->ui()->factory();
+        $class_path = ['ilUIPluginRouterGUI', ilassStackStatisticsUIHookGUI::class];
+
+        return '<div class="xstsa-actions">' . $DIC->ui()->renderer()->render([
+            $factory->button()->standard($this->plugin->txt('export_attempts'), $ctrl->getLinkTargetByClass($class_path, 'exportAttempts')),
+            $factory->button()->standard($this->plugin->txt('export_hints'), $ctrl->getLinkTargetByClass($class_path, 'exportHints')),
+        ]) . '</div>';
+    }
+
+    private function renderHintUsageTable(array $rows): string
+    {
+        if ($rows === []) {
+            return $this->renderEmptyState($this->plugin->txt('no_hint_usage'), false);
+        }
+
+        $html = '<div class="xstsa-table-scroll"><table class="table table-striped xstsa-hint-table">'
+            . '<thead><tr>'
+            . '<th>' . htmlspecialchars($this->plugin->txt('question')) . '</th>'
+            . '<th>' . htmlspecialchars($this->plugin->txt('col_hint_no')) . '</th>'
+            . '<th>' . htmlspecialchars($this->plugin->txt('col_hint_title')) . '</th>'
+            . '<th>' . htmlspecialchars($this->plugin->txt('col_open_count')) . '</th>'
+            . '<th>' . htmlspecialchars($this->plugin->txt('col_unique_attempts')) . '</th>'
+            . '<th>' . htmlspecialchars($this->plugin->txt('col_attempt_rate')) . '</th>'
+            . '</tr></thead><tbody>';
+
+        foreach ($rows as $row) {
+            $html .= '<tr>'
+                . '<td>' . htmlspecialchars($this->data_provider->getQuestionTitle((int) $row['question_id'])) . '</td>'
+                . '<td>' . ((int) $row['hint_index'] + 1) . '</td>'
+                . '<td>' . htmlspecialchars((string) $row['hint_title']) . '</td>'
+                . '<td>' . (int) $row['open_count'] . '</td>'
+                . '<td>' . (int) $row['attempt_count'] . '</td>'
+                . '<td>' . $this->formatPercent((float) $row['attempt_rate']) . '</td>'
+                . '</tr>';
+        }
+
+        return $html . '</tbody></table></div>';
     }
 
     private function renderAttemptsTable(array $attempts, bool $include_user): string

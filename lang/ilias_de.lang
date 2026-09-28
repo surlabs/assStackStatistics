@@ -65,3 +65,14 @@ no_attempts_filtered#:#Keine Versuche entsprechen den aktuellen Filtern.
 no_personal_attempts#:#Noch keine persönlichen STACK-Versuche vorhanden.
 no_prt_available#:#Keine PRT-Daten für die aktuelle Auswahl vorhanden.
 no_chart_data#:#Keine Diagrammdaten verfügbar.
+panel_hint_usage_per_hint#:#Nutzung je Hinweis
+filter_attempts_number#:#Versuch %s
+col_attempt_no#:#Versuch
+col_hint_no#:#Hinweis-Nr.
+col_first_opened#:#Zuerst geöffnet
+col_attempt_rate#:#Anteil der Versuche
+col_points#:#Punkte
+col_time_spent_seconds#:#Bearbeitungszeit (s)
+export_attempts#:#Versuche exportieren (CSV)
+export_hints#:#Hinweisnutzung exportieren (CSV)
+no_hint_usage#:#In den ausgewählten Versuchen wurden keine Hinweise geöffnet.

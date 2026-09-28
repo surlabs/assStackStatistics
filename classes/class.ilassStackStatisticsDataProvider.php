@@ -3,6 +3,7 @@
 class ilassStackStatisticsDataProvider
 {
     private array $question_titles = [];
+    private array $question_order = [];
 
     public function getStackQuestionIds(int $ref_id): array
     {
@@ -26,6 +27,7 @@ class ilassStackStatisticsDataProvider
         while ($row = $db->fetchAssoc($res)) {
             $ids[] = (int) $row['question_id'];
         }
+        $this->question_order = array_flip($ids);
         return $ids;
     }
 
@@ -63,6 +65,7 @@ class ilassStackStatisticsDataProvider
             $row['hint_open_count'] = (int) $row['hint_open_count'];
             $row['total_time_ms'] = (int) ($row['total_time_ms'] ?? 0);
             $row['hint_used'] = $row['hint_open_count'] > 0;
+            $row['attempt_no'] = (int) $row['pass'] + 1;
 
             if (!empty($filters['user_id']) && (int) $filters['user_id'] !== (int) $row['user_id']) {
                 continue;
@@ -80,7 +83,15 @@ class ilassStackStatisticsDataProvider
             $rows[] = $row;
         }
 
-        if (($filters['attempt_scope'] ?? 'all') === 'latest') {
+        $attempt_scope = (string) ($filters['attempt_scope'] ?? 'all');
+        if (ctype_digit($attempt_scope)) {
+            $rows = array_values(array_filter(
+                $rows,
+                static fn(array $row): bool => $row['attempt_no'] === (int) $attempt_scope
+            ));
+        }
+
+        if ($attempt_scope === 'latest') {
             $latest = [];
             foreach ($rows as $row) {
                 $key = $row['question_id'] . ':' . $row['user_id'];
@@ -128,6 +139,128 @@ class ilassStackStatisticsDataProvider
         }
 
         return $options;
+    }
+
+    public function getAttemptNumberOptions(array $question_ids): array
+    {
+        $numbers = array_unique(array_column($this->getAttemptRows($question_ids, []), 'attempt_no'));
+        sort($numbers);
+
+        return $numbers;
+    }
+
+    /**
+     * One row per hint and question, restricted to the given attempts.
+     */
+    public function getHintUsageRows(array $attempts): array
+    {
+        $rows = [];
+        foreach ($this->getHintOpenEvents($attempts) as $event) {
+            $key = $event['question_id'] . ':' . $event['hint_index'];
+            if (!isset($rows[$key])) {
+                $rows[$key] = [
+                    'question_id' => $event['question_id'],
+                    'hint_index' => $event['hint_index'],
+                    'hint_title' => $event['hint_title'],
+                    'open_count' => 0,
+                    'attempt_keys' => [],
+                ];
+            }
+            $rows[$key]['open_count']++;
+            $rows[$key]['attempt_keys'][$event['active_id'] . ':' . $event['pass']] = true;
+        }
+
+        $attempts_per_question = array_count_values(array_map(
+            static fn(array $attempt): int => (int) $attempt['question_id'],
+            $attempts
+        ));
+
+        foreach ($rows as &$row) {
+            $row['attempt_count'] = count($row['attempt_keys']);
+            $row['attempt_rate'] = $row['attempt_count'] / max(1, $attempts_per_question[$row['question_id']] ?? 0);
+            unset($row['attempt_keys']);
+        }
+        unset($row);
+
+        usort($rows, fn(array $left, array $right): int => [$this->getQuestionOrder($left['question_id']), $left['hint_index']]
+            <=> [$this->getQuestionOrder($right['question_id']), $right['hint_index']]);
+
+        return $rows;
+    }
+
+    /**
+     * One row per attempt and hint opened in it, restricted to the given attempts.
+     */
+    public function getHintUsagePerAttemptRows(array $attempts): array
+    {
+        $attempts_by_key = [];
+        foreach ($attempts as $attempt) {
+            $attempts_by_key[$attempt['question_id'] . ':' . $attempt['active_id'] . ':' . $attempt['pass']] = $attempt;
+        }
+
+        $rows = [];
+        foreach ($this->getHintOpenEvents($attempts) as $event) {
+            $attempt_key = $event['question_id'] . ':' . $event['active_id'] . ':' . $event['pass'];
+            $key = $attempt_key . ':' . $event['hint_index'];
+            if (!isset($rows[$key])) {
+                $rows[$key] = $attempts_by_key[$attempt_key] + [
+                    'hint_index' => $event['hint_index'],
+                    'hint_title' => $event['hint_title'],
+                    'hint_opens' => 0,
+                    'first_opened' => $event['stamp'],
+                ];
+            }
+            $rows[$key]['hint_opens']++;
+            $rows[$key]['first_opened'] = min($rows[$key]['first_opened'], $event['stamp']);
+        }
+
+        return array_values($rows);
+    }
+
+    private function getHintOpenEvents(array $attempts): array
+    {
+        global $DIC;
+
+        if ($attempts === []) {
+            return [];
+        }
+
+        $allowed = [];
+        foreach ($attempts as $attempt) {
+            $allowed[$attempt['question_id'] . ':' . $attempt['active_id'] . ':' . $attempt['pass']] = true;
+        }
+
+        $db = $DIC->database();
+        $question_ids = array_unique(array_map(static fn(array $attempt): int => (int) $attempt['question_id'], $attempts));
+        $res = $db->query(
+            'SELECT question_id, active_id, pass, hint_index, hint_title, stamp'
+            . ' FROM xqcas_hint_tracking'
+            . ' WHERE ' . $db->in('question_id', $question_ids, false, 'integer')
+            . " AND event_type = 'open'"
+            . ' ORDER BY stamp ASC'
+        );
+
+        $events = [];
+        while ($row = $db->fetchAssoc($res)) {
+            if (!isset($allowed[$row['question_id'] . ':' . $row['active_id'] . ':' . $row['pass']])) {
+                continue;
+            }
+            $events[] = [
+                'question_id' => (int) $row['question_id'],
+                'active_id' => (int) $row['active_id'],
+                'pass' => (int) $row['pass'],
+                'hint_index' => (int) $row['hint_index'],
+                'hint_title' => trim((string) $row['hint_title']),
+                'stamp' => (int) $row['stamp'],
+            ];
+        }
+
+        return $events;
+    }
+
+    private function getQuestionOrder(int $question_id): int
+    {
+        return $this->question_order[$question_id] ?? PHP_INT_MAX;
     }
 
     public function getPrtOptions(int $question_id): array

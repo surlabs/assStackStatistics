@@ -50,6 +50,7 @@ class ilassStackStatisticsAttemptsTable implements DataRetrieval
         foreach ($records as $index => $attempt) {
             $record = [
                 'question' => $this->getQuestionTitle((int) $attempt['question_id']),
+                'attempt_no' => (int) $attempt['attempt_no'],
                 'score' => round((float) $attempt['fraction'] * 100, 1) . ' %',
                 'hints' => (int) $attempt['hint_open_count'],
                 'time_spent' => $this->formatDuration((int) ($attempt['total_time_ms'] ?? 0)),
@@ -82,6 +83,7 @@ class ilassStackStatisticsAttemptsTable implements DataRetrieval
             $columns['student'] = $cf->text($DIC->language()->txt('user'))->withIsSortable(true);
         }
         $columns['question'] = $cf->text($DIC->language()->txt('question'))->withIsSortable(true);
+        $columns['attempt_no'] = $cf->number($this->txt('col_attempt_no'))->withIsSortable(true);
         $columns['score'] = $cf->text($this->txt('col_score'))->withIsSortable(true);
         $columns['hints'] = $cf->number($this->txt('col_hints'))->withIsSortable(true);
         $columns['time_spent'] = $cf->text($this->txt('col_time_spent'))->withIsSortable(true);
@@ -102,6 +104,7 @@ class ilassStackStatisticsAttemptsTable implements DataRetrieval
                     $this->getQuestionTitle((int) $left['question_id']),
                     $this->getQuestionTitle((int) $right['question_id'])
                 ),
+                'attempt_no' => ((int) $left['attempt_no']) <=> ((int) $right['attempt_no']),
                 'score' => ((float) $left['fraction']) <=> ((float) $right['fraction']),
                 'hints' => ((int) $left['hint_open_count']) <=> ((int) $right['hint_open_count']),
                 'time_spent' => ((int) ($left['total_time_ms'] ?? 0)) <=> ((int) ($right['total_time_ms'] ?? 0)),
