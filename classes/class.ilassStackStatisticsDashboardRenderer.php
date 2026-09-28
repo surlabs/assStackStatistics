@@ -461,7 +461,7 @@ class ilassStackStatisticsDashboardRenderer
                     ilObjUser::_lookupFullname((int) $row['user_id']),
                     $this->data_provider->getQuestionTitle((int) $row['question_id']),
                     $row['attempt_no'],
-                    $row['hint_index'] + 1,
+                    (int) $row['hint_index'],
                     $row['hint_title'],
                     $row['hint_opens'],
                     date('Y-m-d H:i:s', (int) $row['first_opened']),
@@ -540,7 +540,7 @@ class ilassStackStatisticsDashboardRenderer
         foreach ($rows as $row) {
             $html .= '<tr>'
                 . '<td>' . htmlspecialchars($this->data_provider->getQuestionTitle((int) $row['question_id'])) . '</td>'
-                . '<td>' . ((int) $row['hint_index'] + 1) . '</td>'
+                . '<td>' . (int) $row['hint_index'] . '</td>'
                 . '<td>' . htmlspecialchars((string) $row['hint_title']) . '</td>'
                 . '<td>' . (int) $row['open_count'] . '</td>'
                 . '<td>' . (int) $row['attempt_count'] . '</td>'
